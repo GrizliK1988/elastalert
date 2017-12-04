@@ -92,7 +92,7 @@ def test_query(ea):
     ea.current_es.search.return_value = {'hits': {'total': 0, 'hits': []}}
     ea.run_query(ea.rules[0], START, END)
     ea.current_es.search.assert_called_with(body={
-        'query': {'filtered': {'filter': {'bool': {'must': [{'range': {'@timestamp': {'lte': END_TIMESTAMP, 'gt': START_TIMESTAMP}}}]}}}},
+        'query': {'bool': {'filter': {'bool': {'must': [{'range': {'@timestamp': {'lte': END_TIMESTAMP, 'gt': START_TIMESTAMP}}}]}}}},
         'sort': [{'@timestamp': {'order': 'asc'}}]}, index='idx', _source_include=['@timestamp'], ignore_unavailable=True,
         size=ea.rules[0]['max_query_size'], scroll=ea.conf['scroll_keepalive'])
 
@@ -102,8 +102,8 @@ def test_query_with_fields(ea):
     ea.current_es.search.return_value = {'hits': {'total': 0, 'hits': []}}
     ea.run_query(ea.rules[0], START, END)
     ea.current_es.search.assert_called_with(body={
-        'query': {'filtered': {'filter': {'bool': {'must': [{'range': {'@timestamp': {'lte': END_TIMESTAMP, 'gt': START_TIMESTAMP}}}]}}}},
-        'sort': [{'@timestamp': {'order': 'asc'}}], 'fields': ['@timestamp']}, index='idx', ignore_unavailable=True,
+        'query': {'bool': {'filter': {'bool': {'must': [{'range': {'@timestamp': {'lte': END_TIMESTAMP, 'gt': START_TIMESTAMP}}}]}}}},
+        'sort': [{'@timestamp': {'order': 'asc'}}], 'stored_fields': ['@timestamp']}, index='idx', ignore_unavailable=True,
         size=ea.rules[0]['max_query_size'], scroll=ea.conf['scroll_keepalive'])
 
 
@@ -115,7 +115,7 @@ def test_query_with_unix(ea):
     start_unix = dt_to_unix(START)
     end_unix = dt_to_unix(END)
     ea.current_es.search.assert_called_with(
-        body={'query': {'filtered': {'filter': {'bool': {'must': [{'range': {'@timestamp': {'lte': end_unix, 'gt': start_unix}}}]}}}},
+        body={'query': {'bool': {'filter': {'bool': {'must': [{'range': {'@timestamp': {'lte': end_unix, 'gt': start_unix}}}]}}}},
               'sort': [{'@timestamp': {'order': 'asc'}}]}, index='idx', _source_include=['@timestamp'], ignore_unavailable=True,
         size=ea.rules[0]['max_query_size'], scroll=ea.conf['scroll_keepalive'])
 
@@ -128,7 +128,7 @@ def test_query_with_unixms(ea):
     start_unix = dt_to_unixms(START)
     end_unix = dt_to_unixms(END)
     ea.current_es.search.assert_called_with(
-        body={'query': {'filtered': {'filter': {'bool': {'must': [{'range': {'@timestamp': {'lte': end_unix, 'gt': start_unix}}}]}}}},
+        body={'query': {'bool': {'filter': {'bool': {'must': [{'range': {'@timestamp': {'lte': end_unix, 'gt': start_unix}}}]}}}},
               'sort': [{'@timestamp': {'order': 'asc'}}]}, index='idx', _source_include=['@timestamp'], ignore_unavailable=True,
         size=ea.rules[0]['max_query_size'], scroll=ea.conf['scroll_keepalive'])
 
@@ -363,7 +363,7 @@ def test_agg_matchtime(ea):
     call3 = ea.writeback_es.search.call_args_list[9][1]['body']
     call4 = ea.writeback_es.search.call_args_list[10][1]['body']
 
-    assert 'alert_time' in call2['filter']['range']
+    assert 'alert_time' in call2['query']['bool']['filter']['range']
     assert call3['query']['query_string']['query'] == 'aggregate_id:ABCD'
     assert call4['query']['query_string']['query'] == 'aggregate_id:CDEF'
     assert ea.writeback_es.search.call_args_list[9][1]['size'] == 1337
@@ -529,7 +529,7 @@ def test_agg_with_aggregation_key(ea):
     call3 = ea.writeback_es.search.call_args_list[9][1]['body']
     call4 = ea.writeback_es.search.call_args_list[10][1]['body']
 
-    assert 'alert_time' in call2['filter']['range']
+    assert 'alert_time' in call2['query']['bool']['filter']['range']
     assert call3['query']['query_string']['query'] == 'aggregate_id:ABCD'
     assert call4['query']['query_string']['query'] == 'aggregate_id:CDEF'
     assert ea.writeback_es.search.call_args_list[9][1]['size'] == 1337
@@ -698,11 +698,11 @@ def test_count(ea):
     # Assert that es.count is run against every run_every timeframe between START and END
     start = START
     query = {
-        'query': {'filtered': {'filter': {'bool': {'must': [{'range': {'@timestamp': {'lte': END_TIMESTAMP, 'gt': START_TIMESTAMP}}}]}}}}}
+        'query': {'bool': {'filter': {'bool': {'must': [{'range': {'@timestamp': {'lte': END_TIMESTAMP, 'gt': START_TIMESTAMP}}}]}}}}}
     while END - start > ea.run_every:
         end = start + ea.run_every
-        query['query']['filtered']['filter']['bool']['must'][0]['range']['@timestamp']['lte'] = dt_to_ts(end)
-        query['query']['filtered']['filter']['bool']['must'][0]['range']['@timestamp']['gt'] = dt_to_ts(start)
+        query['query']['bool']['filter']['bool']['must'][0]['range']['@timestamp']['lte'] = dt_to_ts(end)
+        query['query']['bool']['filter']['bool']['must'][0]['range']['@timestamp']['gt'] = dt_to_ts(start)
         start = start + ea.run_every
         ea.current_es.count.assert_any_call(body=query, doc_type='doctype', index='idx', ignore_unavailable=True)
 
@@ -976,13 +976,12 @@ def test_count_keys(ea):
     ea.rules[0]['top_count_keys'] = ['this', 'that']
     ea.rules[0]['type'].matches = {'@timestamp': END}
     ea.rules[0]['doc_type'] = 'blah'
-    buckets = [{'aggregations': {'filtered': {'counts': {'buckets': [{'key': 'a', 'doc_count': 10}, {'key': 'b', 'doc_count': 5}]}}}},
-               {'aggregations': {'filtered': {'counts': {'buckets': [{'key': 'd', 'doc_count': 10}, {'key': 'c', 'doc_count': 12}]}}}}]
+    buckets = [{'aggregations': {'counts': {'buckets': [{'key': 'a', 'doc_count': 10}, {'key': 'b', 'doc_count': 5}]}}},
+               {'aggregations': {'counts': {'buckets': [{'key': 'd', 'doc_count': 10}, {'key': 'c', 'doc_count': 12}]}}}]
     ea.current_es.search.side_effect = buckets
     counts = ea.get_top_counts(ea.rules[0], START, END, ['this', 'that'])
     calls = ea.current_es.search.call_args_list
-    assert calls[0][1]['search_type'] == 'count'
-    assert calls[0][1]['body']['aggs']['filtered']['aggs']['counts']['terms'] == {'field': 'this', 'size': 5}
+    assert calls[0][1]['body']['aggs']['counts']['terms'] == {'field': 'this', 'size': 5}
     assert counts['top_events_this'] == {'a': 10, 'b': 5}
     assert counts['top_events_that'] == {'d': 10, 'c': 12}
 
@@ -1037,7 +1036,7 @@ def test_wait_until_responsive(ea):
     ]
 
 
-def test_wait_until_responsive_timeout_es_not_available(ea, capsys):
+def test_wait_until_responsive_timeout_es_not_available(ea, caplog):
     """Bail out if ElasticSearch doesn't (quickly) become responsive."""
 
     # Never becomes responsive :-)
@@ -1053,8 +1052,7 @@ def test_wait_until_responsive_timeout_es_not_available(ea, capsys):
         assert exc.value.code == 1
 
     # Ensure we get useful diagnostics.
-    output, errors = capsys.readouterr()
-    assert 'Could not reach ElasticSearch at "es:14900".' in errors
+    assert 'Could not reach ElasticSearch at "es:14900".' in caplog.text
 
     # Slept until we passed the deadline.
     sleep.mock_calls == [
@@ -1064,7 +1062,7 @@ def test_wait_until_responsive_timeout_es_not_available(ea, capsys):
     ]
 
 
-def test_wait_until_responsive_timeout_index_does_not_exist(ea, capsys):
+def test_wait_until_responsive_timeout_index_does_not_exist(ea, caplog):
     """Bail out if ElasticSearch doesn't (quickly) become responsive."""
 
     # Never becomes responsive :-)
@@ -1080,8 +1078,7 @@ def test_wait_until_responsive_timeout_index_does_not_exist(ea, capsys):
         assert exc.value.code == 1
 
     # Ensure we get useful diagnostics.
-    output, errors = capsys.readouterr()
-    assert 'Writeback index "wb" does not exist, did you run `elastalert-create-index`?' in errors
+    assert 'Writeback index "wbelastalert_status" does not exist, did you run `elastalert-create-index`?' in caplog.text
 
     # Slept until we passed the deadline.
     sleep.mock_calls == [

@@ -377,6 +377,7 @@ class EmailAlerter(Alerter):
         self.smtp_ssl = self.rule.get('smtp_ssl', False)
         self.from_addr = self.rule.get('from_addr', 'ElastAlert')
         self.smtp_port = self.rule.get('smtp_port')
+        self.smtp_auth_mechanism = self.rule.get('smtp_auth_mechanism')
         if self.rule.get('smtp_auth_file'):
             self.get_account(self.rule['smtp_auth_file'])
         self.smtp_key_file = self.rule.get('smtp_key_file')
@@ -443,6 +444,9 @@ class EmailAlerter(Alerter):
                 if self.smtp.has_extn('STARTTLS'):
                     self.smtp.starttls(keyfile=self.smtp_key_file, certfile=self.smtp_cert_file)
             if 'smtp_auth_file' in self.rule:
+                self.smtp.ehlo_or_helo_if_needed()
+                if self.smtp_auth_mechanism:
+                    self.smtp.esmtp_features['auth'] = self.smtp_auth_mechanism
                 self.smtp.login(self.user, self.password)
         except (SMTPException, error) as e:
             raise EAException("Error connecting to SMTP host: %s" % (e))

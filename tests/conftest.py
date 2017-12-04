@@ -12,7 +12,7 @@ from elastalert.util import dt_to_ts
 from elastalert.util import ts_to_dt
 
 
-mock_info = {'status': 200, 'name': 'foo', 'version': {'number': '2.0'}}
+mock_info = {'status': 200, 'name': 'foo', 'version': {'number': '6.0'}}
 
 
 @pytest.fixture(scope='function', autouse=True)
@@ -94,7 +94,7 @@ def ea():
             'alert_time_limit': datetime.timedelta(hours=24),
             'es_host': 'es',
             'es_port': 14900,
-            'writeback_index': 'wb',
+            'writeback_index_prefix': 'wb',
             'rules': rules,
             'max_query_size': 10000,
             'old_query_limit': datetime.timedelta(weeks=1),

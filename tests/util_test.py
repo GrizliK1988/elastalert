@@ -100,12 +100,9 @@ def test_looking_up_nested_composite_keys(ea):
 
 
 def test_add_raw_postfix(ea):
-    expected = 'foo.raw'
-    assert add_raw_postfix('foo', False) == expected
-    assert add_raw_postfix('foo.raw', False) == expected
     expected = 'foo.keyword'
-    assert add_raw_postfix('foo', True) == expected
-    assert add_raw_postfix('foo.keyword', True) == expected
+    assert add_raw_postfix('foo') == expected
+    assert add_raw_postfix('foo.keyword') == expected
 
 
 def test_replace_dots_in_field_names(ea):

@@ -6,7 +6,7 @@ ElastAlert Metadata Index
 ElastAlert uses Elasticsearch to store various information about its state. This not only allows for some
 level of auditing and debugging of ElastAlert's operation, but also to avoid loss of data or duplication of alerts
 when ElastAlert is shut down, restarted, or crashes. This cluster and index information is defined
-in the global config file with ``es_host``, ``es_port`` and ``writeback_index``. ElastAlert must be able
+in the global config file with ``es_host``, ``es_port`` and ``writeback_index_prefix``. ElastAlert must be able
 to write to this index. The script, ``elastalert-create-index`` will create the index with the correct mapping
 for you, and optionally copy the documents from an existing ElastAlert writeback index. Run it and it will
 prompt you for the cluster information.
